@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Crash Demo</title>
+<style>
+*{box-sizing:border-box} body{margin:0;background:#101521;color:#f5f7ff;font-family:Arial,sans-serif}
+.wrap{max-width:560px;margin:auto;padding:16px}.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.logo{font-weight:800;font-size:22px;color:#73f5c2}.wallet{background:#202b3d;padding:10px 12px;border-radius:12px}
+.panel{margin-top:16px;background:#172033;border:1px solid #2a3850;border-radius:18px;padding:14px}
+.graph{height:260px;position:relative;overflow:hidden;border-radius:12px;background:linear-gradient(#192b3d,#111927)}
+.grid{position:absolute;inset:0;background-image:linear-gradient(#ffffff0b 1px,transparent 1px),linear-gradient(90deg,#ffffff0b 1px,transparent 1px);background-size:34px 34px}
+.mult{position:absolute;top:35%;left:0;right:0;text-align:center;font-size:48px;font-weight:800;color:#73f5c2}
+.status{position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#c8d3e4}
+svg{position:absolute;inset:0;width:100%;height:100%}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+input,button{font-size:16px;border:0;border-radius:12px;padding:13px;width:100%}
+input{background:#0e1521;color:white;border:1px solid #34435b;margin-top:8px}
+button{font-weight:700;cursor:pointer}.start{background:#73f5c2;color:#10251f}.cash{background:#ffcc67;color:#352500}.cash:disabled{opacity:.4}
+.small{font-size:13px;color:#aebbd0;line-height:1.5}.history{max-height:130px;overflow:auto;font-size:14px}.history div{padding:8px 0;border-bottom:1px solid #2a3850}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="logo">✦ CRASH DEMO</div><div class="wallet">🪙 <span id="balance">1000</span> কয়েন</div></div>
+  <div class="panel">
+    <div class="graph">
+      <div class="grid"></div>
+      <svg viewBox="0 0 500 260" preserveAspectRatio="none"><polyline id="line" points="0,245" fill="none" stroke="#73f5c2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="mult" id="mult">1.00x</div>
+      <div class="status" id="status">শুরু করতে কয়েনের পরিমাণ লিখুন</div>
+    </div>
+    <div style="margin-top:12px">বাজি (ভার্চুয়াল কয়েন)
+      <input id="bet" type="number" min="10" max="1000" step="10" value="50">
+    </div>
+    <div class="controls">
+      <button class="start" id="start">▶ শুরু করুন</button>
+      <button class="cash" id="cash" disabled>💰 Cash Out</button>
+    </div>
+    <p class="small">ডেমো গেম: এখানে কোনো আসল টাকা, জমা বা উত্তোলন নেই। রাউন্ডের ফলাফল শুধু বিনোদনের জন্য তৈরি হয়।</p>
+  </div>
+  <div class="panel"><b>সাম্প্রতিক রাউন্ড</b><div id="history" class="history small" style="margin-top:8px">এখনও কোনো রাউন্ড নেই</div></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let balance=1000, running=false, cashed=false, bet=50, mult=1, crashAt=2, startTime=0, raf=0, points=[];
+function showBalance(){$('balance').textContent=Math.floor(balance)}
+function status(t){$('status').textContent=t}
+function addHistory(t){if($('history').textContent==='এখনও কোনো রাউন্ড নেই')$('history').textContent='';let d=document.createElement('div');d.textContent=t;$('history').prepend(d)}
+function endRound(){
+ running=false;cancelAnimationFrame(raf);$('cash').disabled=true;$('start').disabled=false;
+ if(!cashed){status('ক্র্যাশ! '+crashAt.toFixed(2)+'x');addHistory('ক্র্যাশ হয়েছে '+crashAt.toFixed(2)+'x · −'+bet+' কয়েন')}
+}
+function tick(now){
+ if(!running)return;
+ let elapsed=(now-startTime)/1000;
+ mult=Math.exp(elapsed*0.23);
+ if(mult>=crashAt){mult=crashAt;$('mult').textContent=mult.toFixed(2)+'x';endRound();return}
+ $('mult').textContent=mult.toFixed(2)+'x';
+ let x=Math.min(500,elapsed*65), y=245-Math.min(220,Math.pow(mult,1.7)*25);
+ points.push(x+','+y); if(points.length>100)points.shift();
+ $('line').setAttribute('points',points.join(' '));
+ if(cashed)status('কয়েন জিতেছেন! '+(bet*mult).toFixed(0));
+ raf=requestAnimationFrame(tick)
+}
+$('start').onclick=()=>{
+ if(running)return;
+ bet=Math.floor(Number($('bet').value));
+ if(!Number.isFinite(bet)||bet<10||bet>1000||bet>balance){status('১০–১০০০ কয়েনের মধ্যে বাজি দিন');return}
+ balance-=bet;showBalance();running=true;cashed=false;mult=1;points=[];$('line').setAttribute('points','0,245');$('mult').textContent='1.00x';status('রাউন্ড চলছে…');$('start').disabled=true;$('cash').disabled=false;
+ crashAt=1.15+Math.random()*4.85;startTime=performance.now();raf=requestAnimationFrame(tick)
+};
+$('cash').onclick=()=>{
+ if(!running||cashed)return;
+ cashed=true;let win=Math.floor(bet*mult);balance+=win;showBalance();$('cash').disabled=true;
+ status('ক্যাশ আউট: '+mult.toFixed(2)+'x · +'+win+' কয়েন');addHistory('ক্যাশ আউট '+mult.toFixed(2)+'x · +'+win+' কয়েন')
+};
+</script>
+</body>
+</html>
